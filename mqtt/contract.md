@@ -74,3 +74,8 @@ de lectura/notificación de estado es `beb5483e-36e1-4688-b7f5-ea07361b26a9`.
 La configuración BLE admite `ssid`, `password`, `mqttHost`, `mqttPort` y
 `deviceCode`. No incluye ni publica contraseñas MQTT; esas se compilan en
 `config.h` cuando el broker las requiere.
+
+Al cambiar solo el `deviceCode`, la app puede enviar `password` vacía porque
+el firmware no devuelve la contraseña Wi-Fi por BLE. Si el SSID ya está
+guardado, el ESP32 reutiliza la contraseña almacenada y mantiene la conexión
+Wi-Fi existente cuando ya está conectado a esa red.
