@@ -416,9 +416,8 @@ JJUEeKgDu+6B5dpffItKoZB0JaezPkvILFa9x8jvOOJckvB595yEunQtYQEgfn7R
 
     lastPersistedTotalLiters = totalLiters;
 
-    // La asociacion es la autoridad para BLE. Un ESP32 sin hogar nunca debe
-    // quedar bloqueado y debe poder volver a vincularse por Bluetooth.
-    if (!linkedToHome && bleLocked)
+    // BLE se reactiva al arrancar para permitir reconfigurar Wi-Fi sin MQTT.
+    if (bleLocked)
     {
       bleLocked = false;
       saveBleLock(false);
@@ -591,7 +590,7 @@ JJUEeKgDu+6B5dpffItKoZB0JaezPkvILFa9x8jvOOJckvB595yEunQtYQEgfn7R
     if (command == "confirm_link")
     {
       saveLinkedToHome(true);
-      saveBleLock(true);
+      saveBleLock(false);
       applyBlePolicy();
       notifyStatus("provisioning_complete");
       return;
@@ -857,9 +856,8 @@ JJUEeKgDu+6B5dpffItKoZB0JaezPkvILFa9x8jvOOJckvB595yEunQtYQEgfn7R
       bleClientConnected = false;
       // NimBLE detiene el advertising al aceptar una conexion. Si el usuario
       // cancela el selector BLE o la conexion falla, debe volver a descubrirse
-      // sin reiniciar el ESP32. Un equipo ya vinculado y bloqueado permanece
-      // fuera de BLE hasta que el backend mande unlink o se use BOOT.
-      if (!linkedToHome || !bleLocked)
+      // sin reiniciar el ESP32. Solo disable_ble mantiene BLE apagado.
+      if (!bleLocked)
       {
         NimBLEDevice::startAdvertising();
         bleAdvertising = true;
@@ -887,7 +885,7 @@ JJUEeKgDu+6B5dpffItKoZB0JaezPkvILFa9x8jvOOJckvB595yEunQtYQEgfn7R
       NimBLEService *service = server->createService(BLE_SERVICE_UUID);
       configCharacteristic = service->createCharacteristic(
           BLE_CONFIG_CHAR_UUID,
-          NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE);
+          NIMBLE_PROPERTY::WRITE);
       configCharacteristic->setCallbacks(new ProvisioningCallbacks());
       statusCharacteristic = service->createCharacteristic(
           BLE_STATUS_CHAR_UUID,
@@ -930,10 +928,7 @@ JJUEeKgDu+6B5dpffItKoZB0JaezPkvILFa9x8jvOOJckvB595yEunQtYQEgfn7R
     if (!bleInitialized)
       return;
 
-    // Si el backend acaba de confirmar la vinculacion mientras el navegador
-    // sigue conectado, cerrar tambien las conexiones GATT existentes. De lo
-    // contrario el anuncio se detiene, pero el cliente puede seguir viendo BLE
-    // como conectado y el equipo queda en un estado ambiguo.
+    // Cierra conexiones GATT activas cuando se desactiva BLE.
     NimBLEServer *server = NimBLEDevice::getServer();
     if (server != nullptr)
     {
@@ -946,33 +941,20 @@ JJUEeKgDu+6B5dpffItKoZB0JaezPkvILFa9x8jvOOJckvB595yEunQtYQEgfn7R
     NimBLEDevice::getAdvertising()->stop();
     bleAdvertising = false;
     bleClientConnected = false;
-    Serial.println("[BLE] Provisionamiento detenido: dispositivo asociado");
+    Serial.println("[BLE] Provisionamiento BLE detenido");
   }
 
   void applyBlePolicy()
   {
-    // Sin hogar asociado, el ESP32 siempre debe poder ser descubierto y
-    // vinculado, aunque conserve una red Wi-Fi en NVS.
-    if (!linkedToHome)
+    // BLE queda disponible despues de la asociacion para cambiar la red Wi-Fi.
+    if (bleLocked)
     {
-      if (bleLocked)
-        saveBleLock(false);
-      if (!bleAdvertising)
-        startProvisioningBLE();
+      stopProvisioningBLE();
       return;
     }
 
-    // La vinculacion confirmada es la autoridad para apagar BLE. Si se habilito
-    // manualmente con BOOT o por un comando, se mantiene encendido hasta que el
-    // backend confirme nuevamente disable_ble.
-    if (!bleLocked)
-    {
-      if (!bleAdvertising)
-        startProvisioningBLE();
-      return;
-    }
-
-    stopProvisioningBLE();
+    if (!bleAdvertising)
+      startProvisioningBLE();
   }
 
   void checkConfigurationButton()
@@ -1026,6 +1008,8 @@ void setup()
   attachInterrupt(digitalPinToInterrupt(HIDROSMART_FLOW_PIN), onPulse, FALLING);
   pinMode(CONFIG_BUTTON_PIN, INPUT_PULLUP);
 
+  // Anuncia BLE antes de iniciar Wi-Fi/MQTT para permitir aprovisionamiento inmediato.
+  applyBlePolicy();
 
   mqttClient.setKeepAlive(HIDROSMART_MQTT_KEEPALIVE_SECONDS);
   mqttClient.setBufferSize(768);
@@ -1043,8 +1027,6 @@ void setup()
     {
       Serial.println("[WIFI] No hay redes guardadas disponibles.");
     }
-
-  applyBlePolicy();
 
   lastSampleAt = millis();
   lastTotalSaveAt = millis();

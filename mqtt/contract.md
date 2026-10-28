@@ -60,16 +60,18 @@ El backend publica JSON en `commands`:
 
 | Comando | Efecto |
 | --- | --- |
-| `confirm_link` | Marca hogar asociado y detiene BLE. |
+| `confirm_link` | Marca hogar asociado y mantiene BLE disponible para reconfigurar Wi-Fi. |
 | `unlink` | Elimina asociación, conserva Wi-Fi y vuelve a anunciar BLE. |
 | `enable_ble` | Habilita BLE para configuración. |
-| `disable_ble` | Solo se acepta si la placa ya está asociada. |
+| `disable_ble` | Solo se acepta si la placa está asociada; se reactiva al reiniciar. |
 
 ## BLE
 
 El servicio BLE usa `4fafc201-1fb5-459e-8fcc-c5c9c331914b`; la característica
 de escritura de configuración es `beb5483e-36e1-4688-b7f5-ea07361b26a8` y la
 de lectura/notificación de estado es `beb5483e-36e1-4688-b7f5-ea07361b26a9`.
+La configuración es de solo escritura para que otra conexión BLE no pueda leer
+el JSON con la contraseña Wi-Fi.
 
 La configuración BLE admite `ssid`, `password`, `mqttHost`, `mqttPort` y
 `deviceCode`. No incluye ni publica contraseñas MQTT; esas se compilan en

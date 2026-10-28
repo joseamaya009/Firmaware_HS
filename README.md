@@ -8,10 +8,9 @@ conserva redes Wi-Fi en NVS, se aprovisiona por BLE y publica telemetría MQTT.
 1. Copia `provisioning/config.example.h` como `provisioning/config.h`.
 2. Define Wi-Fi, host MQTT de red estable, código lógico y parámetros del
    sensor. `config.h` está ignorado por Git.
-3. Instala PlatformIO y ejecuta:
+3. Instala PlatformIO y ejecuta desde la raíz de este repositorio:
 
 ```powershell
-Set-Location firmware
 pio run
 pio run -t upload --upload-port COM6
 pio device monitor --baud 115200
@@ -23,12 +22,16 @@ programa que esté usando el puerto y vuelve a cargar.
 ## Comportamiento BLE
 
 - La placa obtiene un `hardwareId` estable desde el eFuse.
-- Si no pertenece a un hogar, anuncia `HidroSmart-XXXXXX` por BLE incluso con
-  Wi-Fi ya guardado.
+- Anuncia `HidroSmart-XXXXXX` por BLE al arrancar, incluso con Wi-Fi guardado
+  o después de asociarse a un hogar.
 - Cuando recibe Wi-Fi por BLE, guarda la red en NVS y trata de conectar MQTT.
-- `confirm_link` marca la asociación, detiene BLE y conserva la red guardada.
+- `confirm_link` marca la asociación, mantiene BLE activo y conserva la red.
 - `unlink` conserva Wi-Fi, borra solo la asociación y reactiva BLE.
-- Mantener BOOT aproximadamente cinco segundos habilita BLE manualmente.
+- `disable_ble` lo desactiva temporalmente; al reiniciar vuelve a anunciarse.
+- Mantener BOOT aproximadamente cinco segundos también habilita BLE.
+
+El servicio BLE no usa pairing ni PIN. Cualquier equipo cercano puede enviar
+una nueva configuración Wi-Fi; mantén el acceso físico a la placa bajo control.
 
 ## Telemetría
 

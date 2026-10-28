@@ -3,7 +3,7 @@
 Antes de cargar una placa, compila:
 
 ```powershell
-Set-Location firmware
+# Ejecuta desde la raiz del repositorio Firmaware_HS.
 pio run
 ```
 
